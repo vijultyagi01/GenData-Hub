@@ -9,6 +9,9 @@ from sklearn import datasets
 from kaggle.api.kaggle_api_extended import KaggleApi
 from sklearn.datasets import fetch_openml
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from bs4 import BeautifulSoup
+from sklearn.datasets import make_classification, make_regression
+
 
 # Set up Kaggle API credentials
 os.environ['KAGGLE_USERNAME'] = "vijultyagi"
