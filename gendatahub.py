@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 # Set up Kaggle API credentials
 os.environ['KAGGLE_USERNAME'] = "vijultyagi"
-os.environ['KAGGLE_KEY'] = "7c7ad291191bdd995337b23b0eaf64ca"
+os.environ['KAGGLE_KEY'] = "7c7ad291191bdd995337b23b0eaxxxxx"
 
 # --- Streamlit UI Setup ---
 st.set_page_config(page_title="Dataset Generator", page_icon="📊", layout="wide")
