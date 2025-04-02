@@ -15,7 +15,7 @@ from sklearn.datasets import make_classification, make_regression
 
 # Set up Kaggle API credentials
 os.environ['KAGGLE_USERNAME'] = "vijultyagi"
-os.environ['KAGGLE_KEY'] = "7c7ad291191bdd995337b23b0eaf64ca"
+os.environ['KAGGLE_KEY'] = "7c7ad291191bdd995337b23b0eafxxxxx"
 
 # --- Streamlit UI Setup ---
 st.set_page_config(page_title="Dataset Generator", page_icon="📊", layout="wide")
@@ -206,12 +206,28 @@ else:
     elif dataset_type == "From URL":
         url = st.sidebar.text_input("Enter URL for dataset:", "")
         if st.sidebar.button("📥 Load Dataset"):
-            try:
-                df = pd.read_csv(url)
-                st.write("### Dataset from URL")
-                st.dataframe(df.head())
-            except Exception as e:
-                st.sidebar.error(f"⚠️ URL Loading Error: {e}")
+         
+    """Scrapes review data from a given URL and structures it into a DataFrame."""
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise error for bad responses
+    except requests.RequestException as e:
+        st.error(f"Failed to fetch data: {e}")
+        return None
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    titles, descriptions, ratings = [], [], []
+
+    for review in soup.find_all('div', class_='review'):
+        title = review.find('h3').get_text(strip=True) if review.find('h3') else 'No title'
+        description = review.find('p').get_text(strip=True) if review.find('p') else 'No description'
+        rating = review.find('span', class_='rating').get_text(strip=True) if review.find('span', class_='rating') else 'No rating'
+        titles.append(title)
+        descriptions.append(description)
+        ratings.append(rating)
+
+    return pd.DataFrame({"Title": titles, "Description": descriptions, "Rating": ratings})
+
 
     # Export buttons
     st.sidebar.subheader("Download Dataset")
