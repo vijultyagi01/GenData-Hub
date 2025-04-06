@@ -40,3 +40,9 @@ To run this project locally, follow these steps:
    ```bash
    git clone https://github.com/yourusername/repository-name.git
    cd repository-name
+2.**Install the required dependencies**:
+   ```bash
+    pip install -r requirements.txt
+3. **Run the Streamlit app**:
+   ```bash
+   streamlit run gendatahub.py
