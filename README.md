@@ -30,7 +30,6 @@ Welcome to the **Dataset Generator** app! This tool allows you to generate vario
    - Load datasets from **Kaggle**, **OpenML**, **Seaborn**, and **TensorFlow Datasets** directly within the app.
    - Simply search for the dataset and load it to preview and download.
 
----
 
 ## 🛠️ Installation
 
@@ -43,6 +42,6 @@ To run this project locally, follow these steps:
 2.**Install the required dependencies**:
    ```bash
     pip install -r requirements.txt
-3. **Run the Streamlit app**:
-   ```bash
+
+then
    streamlit run gendatahub.py
