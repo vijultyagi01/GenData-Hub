@@ -8,17 +8,18 @@ import tensorflow_datasets as tfds
 from sklearn import datasets
 from kaggle.api.kaggle_api_extended import KaggleApi
 from sklearn.datasets import fetch_openml
-from bs4 import BeautifulSoup
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-# Set up Kaggle API credentials
+# ✅ Set Kaggle API Credentials
 os.environ['KAGGLE_USERNAME'] = "vijultyagi"
-os.environ['KAGGLE_KEY'] = "7c7ad291191bdd995337b23b0eaxxxxx"
+os.environ['KAGGLE_KEY'] = "1e76833f680568077457316c7a5ea42e"
 
-# --- Streamlit UI Setup ---
+# ✅ Ensure TFDS manual directory exists
+tfds_dir = os.path.join(os.path.expanduser("~"), "tensorflow_datasets", "downloads", "manual")
+os.makedirs(tfds_dir, exist_ok=True)
+
+# ✅ Streamlit Page Config
 st.set_page_config(page_title="Dataset Generator", page_icon="📊", layout="wide")
-
-# Header with a nice background
 st.markdown("""
     <style>
         .title {
@@ -33,201 +34,197 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-# Title for the app
 st.markdown('<div class="title">🚀 Dataset Generator</div>', unsafe_allow_html=True)
 
-# Sidebar configuration
+# ✅ Sidebar: Dataset Type Selection
 st.sidebar.title("🔧 Configuration")
-st.sidebar.header("Adjust the parameters below to generate a dataset")
+dataset_type = st.sidebar.selectbox("Select Dataset Type", [
+    "Classification", "Regression", "Time-Series", "From URL", "📂 Advanced Dataset Loader"
+])
 
-# User input options for different datasets
-dataset_type = st.sidebar.selectbox("Select Dataset Type", ["Classification", "Regression", "Time-Series", "From URL", "📂 Advanced Dataset Loader"])
+# ✅ Utilities
+def add_data_variations(features, noise_level, outlier_percentage):
+    if noise_level > 0:
+        features += np.random.normal(0, noise_level, size=features.shape)
+    if outlier_percentage > 0:
+        n_outliers = int(outlier_percentage * features.shape[0])
+        indices = np.random.choice(features.shape[0], n_outliers, replace=False)
+        features[indices] = np.random.uniform(-10, 10, (n_outliers, features.shape[1]))
+    return features
 
-# Display UI for "📂 Advanced Dataset Loader" Option
+def scale_data(features, method):
+    if method == "Standardization":
+        return StandardScaler().fit_transform(features)
+    elif method == "Normalization":
+        return MinMaxScaler().fit_transform(features)
+    return features
+
+# ✅ Session States for Kaggle Search Results
+if 'kaggle_results' not in st.session_state:
+    st.session_state.kaggle_results = []
+if 'selected_kaggle_dataset' not in st.session_state:
+    st.session_state.selected_kaggle_dataset = ""
+
+# ✅ Advanced Loader Mode
 if dataset_type == "📂 Advanced Dataset Loader":
     st.title("📂 Advanced Dataset Loader")
-    st.sidebar.subheader("🔍 Search & Load Datasets")
-    
-    # Initialize Kaggle API
+    st.sidebar.header("🔍 Search & Load Datasets")
+
     api = KaggleApi()
     api.authenticate()
 
-    # ------------------------ Scikit-learn Datasets ------------------------
-    st.sidebar.subheader("📊 Scikit-learn Datasets")
-    sklearn_datasets = {
-        "Iris": "iris",
-        "Wine": "wine",
-        "Breast Cancer": "breast_cancer",
-        "Diabetes": "diabetes",
-        "Digits": "digits"
+    # 📊 Scikit-learn Datasets
+    st.sidebar.subheader("📊 Scikit-learn")
+    skl_datasets = {
+        "Iris": "iris", "Wine": "wine", "Breast Cancer": "breast_cancer",
+        "Diabetes": "diabetes", "Digits": "digits"
     }
-
-    selected_sklearn = st.sidebar.selectbox("Select Scikit-learn Dataset:", list(sklearn_datasets.keys()))
-    if st.sidebar.button("📊 Load Scikit-learn Dataset"):
-        data = getattr(datasets, f"load_{sklearn_datasets[selected_sklearn]}")()
+    skl_choice = st.sidebar.selectbox("Scikit-learn Dataset", list(skl_datasets.keys()))
+    if st.sidebar.button("Load Scikit-learn Dataset"):
+        data = getattr(datasets, f"load_{skl_datasets[skl_choice]}")()
         df = pd.DataFrame(data.data, columns=data.feature_names)
-        st.write(f"### {selected_sklearn} Dataset (Scikit-learn)")
+        st.subheader(f"{skl_choice} Dataset (Scikit-learn)")
         st.dataframe(df.head())
 
-    # ------------------------ TensorFlow Datasets ------------------------
+    # 📊 TensorFlow Datasets
     st.sidebar.subheader("📊 TensorFlow Datasets")
-    tfds_datasets = tfds.list_builders()
-    selected_tfds = st.sidebar.selectbox("Select TensorFlow Dataset:", tfds_datasets)
-    if st.sidebar.button("📊 Load TensorFlow Dataset"):
+    tfds_list = tfds.list_builders()
+    tfds_choice = st.sidebar.selectbox("TensorFlow Dataset", tfds_list)
+    if st.sidebar.button("Load TFDS Dataset"):
         try:
-            ds = tfds.load(selected_tfds, split='train')
+            ds = tfds.load(tfds_choice, split="train")
             df = tfds.as_dataframe(ds)
-            st.write(f"### {selected_tfds} Dataset (TensorFlow Datasets)")
+            st.subheader(f"{tfds_choice} Dataset (TFDS)")
             st.dataframe(df.head())
         except Exception as e:
-            st.sidebar.error(f"⚠️ TensorFlow Datasets Error: {e}")
+            st.sidebar.error("❌ TFDS Load Error:")
+            st.error(f"""
+                🔔 Some TFDS datasets (like Ravens Matrices) require manual download.
+                \nGo to: https://console.cloud.google.com/storage/browser/ravens-matrices
+                \nPlace the downloaded files into:
+                \n`{tfds_dir}`
+                \n\nError: {e}
+            """)
 
-    # ------------------------ OpenML Datasets ------------------------
-    st.sidebar.subheader("📊 OpenML Datasets")
-    openml_dataset_id = st.sidebar.text_input("Enter OpenML Dataset ID:")
-    if st.sidebar.button("📊 Load OpenML Dataset") and openml_dataset_id.isdigit():
+    # 📊 OpenML Dataset
+    st.sidebar.subheader("📊 OpenML Dataset")
+    openml_id = st.sidebar.text_input("OpenML Dataset ID")
+    if st.sidebar.button("Load OpenML Dataset") and openml_id.isdigit():
         try:
-            df = fetch_openml(data_id=int(openml_dataset_id), as_frame=True).data
-            st.write(f"### OpenML Dataset (ID: {openml_dataset_id})")
+            df = fetch_openml(data_id=int(openml_id), as_frame=True).data
+            st.subheader(f"OpenML Dataset (ID: {openml_id})")
             st.dataframe(df.head())
         except Exception as e:
-            st.sidebar.error(f"⚠️ OpenML Error: {e}")
-    else:
-        if openml_dataset_id and not openml_dataset_id.isdigit():
-            st.sidebar.error("⚠️ Please enter a valid numeric OpenML Dataset ID.")
+            st.sidebar.error(f"OpenML Error: {e}")
 
-    # ------------------------ Kaggle Dataset Search ------------------------
+    # 📂 Kaggle Dataset Search
     st.sidebar.subheader("📂 Kaggle Datasets")
-    search_query = st.sidebar.text_input("Enter Kaggle dataset keyword:")
-    if st.sidebar.button("🔍 Search Kaggle"):
-        if search_query:
-            datasets_kaggle = api.dataset_list(search_query)
-            if datasets_kaggle:
-                dataset_ref = st.sidebar.selectbox("Select a Kaggle dataset:", datasets_kaggle, format_func=lambda x: x.ref)
-                if st.sidebar.button("⬇️ Download Dataset"):
-                    path = f"datasets/{dataset_ref.split('/')[-1]}"
-                    api.dataset_download_files(dataset_ref, path="datasets", unzip=True)
-                    st.success(f"✅ Dataset downloaded to: {path}")
-            else:
-                st.sidebar.warning("⚠️ No datasets found. Try a different keyword.")
-    
-    # ------------------------ Seaborn Datasets ------------------------
-    st.sidebar.subheader("📊 Seaborn Datasets")
-    seaborn_datasets = sns.get_dataset_names()
-    selected_seaborn = st.sidebar.selectbox("Select Seaborn Dataset:", seaborn_datasets)
-    if st.sidebar.button("📊 Load Seaborn Dataset"):
-        df = sns.load_dataset(selected_seaborn)
-        st.write(f"### {selected_seaborn} Dataset (Seaborn)")
-        st.dataframe(df.head())
-    
-    # ------------------------ Show Downloaded Kaggle Datasets ------------------------
-    if os.path.exists("datasets"):
-        st.sidebar.subheader("📂 View Downloaded Datasets")
-        files = os.listdir("datasets")
-        selected_file = st.sidebar.selectbox("Select a file:", ["Select a file"] + files)
-        if selected_file != "Select a file" and selected_file.endswith(".csv"):
-            df = pd.read_csv(os.path.join("datasets", selected_file))
-            st.write(f"### {selected_file} Dataset (Downloaded from Kaggle)")
-            st.dataframe(df.head())
+    search_query = st.sidebar.text_input("🔍 Kaggle Search Keyword")
+    if st.sidebar.button("🔍 Search on Kaggle"):
+        try:
+            results = api.dataset_list(search=search_query)
+            st.session_state.kaggle_results = [d.ref for d in results]
+            st.success(f"Found {len(results)} datasets.")
+        except Exception as e:
+            st.sidebar.error(f"🚨 Kaggle Search Error: {e}")
 
-else:
-    # Dataset Generation Options for other categories (Classification, Regression, etc.)
-    st.sidebar.header("Adjust the parameters below to generate a dataset")
-    num_rows = st.sidebar.slider("Number of Rows", 100, 1000, 500)
-    num_features = st.sidebar.slider("Number of Features", 2, 20, 10)
-    noise_level = st.sidebar.slider("Noise Level", 0.0, 1.0, 0.1)
-    outlier_percentage = st.sidebar.slider("Outlier Percentage", 0.0, 0.2, 0.05)
-    scale_features = st.sidebar.selectbox("Feature Scaling", ["None", "Standardization", "Normalization"])
-    missing_data_percentage = st.sidebar.slider("Missing Data Percentage", 0.0, 0.2, 0.05)
-    
-    # Select the dataset type
-    if dataset_type == "Classification":
-        target = np.random.choice([0, 1], size=num_rows)
-        features = np.random.randn(num_rows, num_features)
-        if noise_level > 0:
-            features += np.random.normal(0, noise_level, size=features.shape)  # Adding noise
-        if outlier_percentage > 0:
-            num_outliers = int(outlier_percentage * num_rows)
-            outlier_indices = np.random.choice(num_rows, num_outliers, replace=False)
-            features[outlier_indices] = np.random.uniform(-10, 10, (num_outliers, num_features))
-        if scale_features != "None":
-            if scale_features == "Standardization":
-                scaler = StandardScaler()
-            else:
-                scaler = MinMaxScaler()
-            features = scaler.fit_transform(features)
-        df = pd.DataFrame(features, columns=[f"Feature_{i+1}" for i in range(num_features)])
-        df["Target"] = target
-        st.subheader("📊 Generated Classification Dataset")
+    if st.session_state.kaggle_results:
+        st.session_state.selected_kaggle_dataset = st.sidebar.selectbox("Choose Kaggle Dataset", st.session_state.kaggle_results)
+        if st.sidebar.button("⬇️ Download Selected Dataset"):
+            try:
+                dataset_ref = st.session_state.selected_kaggle_dataset
+                dataset_folder = dataset_ref.split("/")[-1]
+                path = os.path.join("datasets", dataset_folder)
+                os.makedirs(path, exist_ok=True)
+                api.dataset_download_files(dataset_ref, path=path, unzip=True)
+                st.success(f"✅ Downloaded and extracted to `{path}`")
+
+                csv_files = [f for f in os.listdir(path) if f.endswith(".csv")]
+                if csv_files:
+                    df = pd.read_csv(os.path.join(path, csv_files[0]))
+                    st.subheader(f"📄 {csv_files[0]} (from Kaggle)")
+                    st.dataframe(df.head())
+                else:
+                    st.warning("Downloaded dataset doesn't contain CSV files.")
+            except Exception as e:
+                st.sidebar.error(f"❌ Kaggle Download Error: {e}")
+
+    # 📊 Seaborn Datasets
+    st.sidebar.subheader("📊 Seaborn Datasets")
+    seaborn_list = sns.get_dataset_names()
+    seaborn_choice = st.sidebar.selectbox("Seaborn Dataset", seaborn_list)
+    if st.sidebar.button("Load Seaborn Dataset"):
+        df = sns.load_dataset(seaborn_choice)
+        st.subheader(f"{seaborn_choice} Dataset (Seaborn)")
         st.dataframe(df.head())
+
+    # 📁 Local CSV Viewer
+    if os.path.exists("datasets"):
+        st.sidebar.subheader("📂 Local CSV Viewer")
+        all_dirs = [d for d in os.listdir("datasets") if os.path.isdir(os.path.join("datasets", d))]
+        file_choice = st.sidebar.selectbox("Choose CSV Folder", ["-- Select --"] + all_dirs)
+        if file_choice != "-- Select --":
+            csv_files = [f for f in os.listdir(os.path.join("datasets", file_choice)) if f.endswith(".csv")]
+            if csv_files:
+                df = pd.read_csv(os.path.join("datasets", file_choice, csv_files[0]))
+                st.subheader(f"{csv_files[0]} (from Local Kaggle)")
+                st.dataframe(df.head())
+
+# ✅ Dataset Generator
+else:
+    st.sidebar.header("🧪 Generate Dataset")
+    rows = st.sidebar.slider("Rows", 100, 1000, 500)
+    cols = st.sidebar.slider("Features", 2, 20, 10)
+    noise = st.sidebar.slider("Noise Level", 0.0, 1.0, 0.1)
+    outliers = st.sidebar.slider("Outlier %", 0.0, 0.2, 0.05)
+    scaling = st.sidebar.selectbox("Scaling", ["None", "Standardization", "Normalization"])
+    missing_pct = st.sidebar.slider("Missing Data %", 0.0, 0.2, 0.05)
+
+    features = np.random.randn(rows, cols)
+    features = add_data_variations(features, noise, outliers)
+    features = scale_data(features, scaling)
+
+    if dataset_type == "Classification":
+        target = np.random.choice([0, 1], rows)
+        df = pd.DataFrame(features, columns=[f"Feature_{i+1}" for i in range(cols)])
+        df["Target"] = target
+        st.subheader("📊 Classification Dataset")
 
     elif dataset_type == "Regression":
-        target = np.random.randn(num_rows)
-        features = np.random.randn(num_rows, num_features)
-        if noise_level > 0:
-            features += np.random.normal(0, noise_level, size=features.shape)  # Adding noise
-        if outlier_percentage > 0:
-            num_outliers = int(outlier_percentage * num_rows)
-            outlier_indices = np.random.choice(num_rows, num_outliers, replace=False)
-            features[outlier_indices] = np.random.uniform(-10, 10, (num_outliers, num_features))
-        if scale_features != "None":
-            if scale_features == "Standardization":
-                scaler = StandardScaler()
-            else:
-                scaler = MinMaxScaler()
-            features = scaler.fit_transform(features)
-        df = pd.DataFrame(features, columns=[f"Feature_{i+1}" for i in range(num_features)])
+        target = np.random.randn(rows)
+        df = pd.DataFrame(features, columns=[f"Feature_{i+1}" for i in range(cols)])
         df["Target"] = target
-        st.subheader("📊 Generated Regression Dataset")
-        st.dataframe(df.head())
+        st.subheader("📊 Regression Dataset")
 
     elif dataset_type == "Time-Series":
-        time_index = pd.date_range(start="2020-01-01", periods=num_rows, freq="D")
-        features = np.random.randn(num_rows, num_features)
-        if noise_level > 0:
-            features += np.random.normal(0, noise_level, size=features.shape)  # Adding noise
-        if outlier_percentage > 0:
-            num_outliers = int(outlier_percentage * num_rows)
-            outlier_indices = np.random.choice(num_rows, num_outliers, replace=False)
-            features[outlier_indices] = np.random.uniform(-10, 10, (num_outliers, num_features))
-        if scale_features != "None":
-            if scale_features == "Standardization":
-                scaler = StandardScaler()
-            else:
-                scaler = MinMaxScaler()
-            features = scaler.fit_transform(features)
-        df = pd.DataFrame(features, columns=[f"Feature_{i+1}" for i in range(num_features)], index=time_index)
-        st.subheader("📊 Generated Time-Series Dataset")
-        st.dataframe(df.head())
+        index = pd.date_range("2020-01-01", periods=rows, freq="D")
+        df = pd.DataFrame(features, columns=[f"Feature_{i+1}" for i in range(cols)], index=index)
+        st.subheader("📊 Time-Series Dataset")
 
     elif dataset_type == "From URL":
-        url = st.sidebar.text_input("Enter URL for dataset:", "")
-        if st.sidebar.button("📥 Load Dataset"):
+        url = st.sidebar.text_input("Dataset URL")
+        if st.sidebar.button("Load Dataset"):
             try:
                 df = pd.read_csv(url)
-                st.write("### Dataset from URL")
-                st.dataframe(df.head())
+                st.subheader("📥 Dataset from URL")
             except Exception as e:
-                st.sidebar.error(f"⚠️ URL Loading Error: {e}")
+                st.sidebar.error(f"URL Load Error: {e}")
 
-    # Export buttons
-    st.sidebar.subheader("Download Dataset")
-    if not df.empty:
-        st.sidebar.download_button(
-            label="Download as CSV",
-            data=df.to_csv(index=False),
-            file_name="generated_dataset.csv",
-            mime="text/csv"
-        )
-        # Excel Export with ExcelWriter
+    # Add Missing Data
+    if missing_pct > 0 and 'df' in locals():
+        mask = np.random.rand(*df.shape) < missing_pct
+        df = df.mask(mask)
+
+    if 'df' in locals():
+        st.dataframe(df.head())
+
+        # ✅ Download Buttons
+        st.sidebar.subheader("⬇️ Download Dataset")
+        st.sidebar.download_button("Download CSV", df.to_csv(index=False), "generated_dataset.csv", "text/csv")
+
         import io
-        with io.BytesIO() as excel_buffer:
-            with pd.ExcelWriter(excel_buffer, engine="xlsxwriter") as writer:
-                df.to_excel(writer, index=False, sheet_name="Sheet1")
-            st.sidebar.download_button(
-                label="Download as Excel",
-                data=excel_buffer.getvalue(),
-                file_name="generated_dataset.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+        with io.BytesIO() as buffer:
+            with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+                df.to_excel(writer, index=False)
+            st.sidebar.download_button("Download Excel", buffer.getvalue(), "generated_dataset.xlsx",
+                                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
