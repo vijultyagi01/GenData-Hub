@@ -1,8 +1,3 @@
-# GenData-Hub
-
-
-
-
 # 🚀 Dataset Generator
 
 Welcome to the **Dataset Generator** app! This tool allows you to generate various types of datasets for your data science, machine learning, or analytics projects. You can also explore datasets from Kaggle, OpenML, TensorFlow Datasets, Seaborn, and more. It provides an intuitive UI for generating datasets with configurable parameters, such as noise level, outliers, missing data, and scaling. 
