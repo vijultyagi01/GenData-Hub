@@ -41,7 +41,7 @@ To run this project locally, follow these steps:
    cd repository-name
 2.**Install the required dependencies**:
    ```bash
-    pip install -r requirements.txt
+    pip install -r req.txt
 
 then
    streamlit run gendatahub.py
