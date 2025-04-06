@@ -36,7 +36,7 @@ Welcome to the **Dataset Generator** app! This tool allows you to generate vario
 
 To run this project locally, follow these steps:
 
-1. **Clone the Repository:**
-
+1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/dataset-generator.git
+   git clone https://github.com/yourusername/repository-name.git
+   cd repository-name
