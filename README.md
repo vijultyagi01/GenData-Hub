@@ -42,10 +42,8 @@ To run this project locally, follow these steps:
 2.**Install the required dependencies**:
    ```bash
     pip install -r req.txt
-
 then
    streamlit run gendatahub.py
-
 # cd C:\Users\Admin\Downloads
-#   streamlit run gendatahub.py
+# streamlit run gendatahub.py
 
