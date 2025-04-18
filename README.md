@@ -45,3 +45,7 @@ To run this project locally, follow these steps:
 
 then
    streamlit run gendatahub.py
+
+# cd C:\Users\Admin\Downloads
+#   streamlit run gendatahub.py
+
